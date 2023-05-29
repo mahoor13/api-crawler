@@ -1,0 +1,43 @@
+import os
+import sys
+import csv
+import requests
+import json
+import concurrent.futures
+
+
+csv_file = "postal_code.csv"
+url = sys.argv[1]
+
+def fetch_json(postal_code):
+    file_name = 'json/' + postal_code + '.json'
+    if os.path.isfile(file_name):
+        return
+    data = {
+        'uprn': postal_code,
+    }
+    headers = {
+        'Authorization': 'Bearer ' + sys.argv[2],
+        'Content-Type': 'application/json',
+    }
+    response = requests.post(url, json=data, headers=headers)
+    if response.status_code == 200:
+        json_data = response.json()
+        # save to file
+        with open(file_name, 'w') as json_file:
+            json.dump(json_data, json_file, ensure_ascii=False, indent=2)
+        print(postal_code, " OK")
+    else:
+        json_data = {}
+        print(postal_code, " Error")
+    
+    return json_data
+
+# Load numbers from CSV file
+with open(csv_file, 'r') as file:
+    csv_reader = csv.reader(file)
+    postal_codes = [row[0] for row in csv_reader]
+
+# Send requests in parallel
+with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+    results = executor.map(fetch_json, postal_codes)
